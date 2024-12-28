@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>ストループ課題デモ</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: sans-serif;
+      background: linear-gradient(135deg, #ffecd2, #fcb69f);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #333;
+    }
+    #instruction {
+      margin-top: 10px;
+      font-size: 1rem;
+      color: #333;
+      text-align: center;
+      line-height: 1.4em;
+    }
+    #task-area {
+      position: relative;
+      width: 600px;
+      height: 250px;
+      margin-top: 30px;
+      background: #fff;
+      border: 2px solid #333;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #word {
+      font-size: 3rem;
+      font-weight: bold;
+    }
+    #info {
+      margin-top: 20px;
+      min-height: 2em;
+      color: #333;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      background: #3498db;
+      color: #fff;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <h1>ストループ課題</h1>
+  <div id="instruction">
+    <p>表示される「文字の色」に対応するキーを押してください。</p>
+    <p>(赤→R, 青→B, 緑→G, 黄→Y)</p>
+    <p>※ 単語の意味に惑わされず、<strong>文字の色</strong>に注目！</p>
+  </div>
+
+  <div id="task-area">
+    <div id="word">開始ボタンを押してください</div>
+  </div>
+
+  <div id="info"></div>
+  <button id="start-btn">開始</button>
+
+  <script>
+    /********************************************
+     * 1. 定数・変数の定義
+     ********************************************/
+    const wordElement = document.getElementById("word");
+    const taskArea = document.getElementById("task-area");
+    const infoArea = document.getElementById("info");
+    const startBtn = document.getElementById("start-btn");
+
+    // 色名と対応キー
+    //   colorName: 表示する文字 (日本語の「赤」「青」「緑」「黄」など)
+    //   colorCode: 実際に文字に適用するCSSカラー
+    //   key: キーボードの押下キー（R, B, G, Y など）
+    const COLORS = [
+      { colorName: "赤", colorCode: "red",   key: "R" },
+      { colorName: "青", colorCode: "blue",  key: "B" },
+      { colorName: "緑", colorCode: "green", key: "G" },
+      { colorName: "黄", colorCode: "gold",  key: "Y" }
+    ];
+
+    // 試行回数
+    const TRIAL_COUNT = 10;
+
+    // 試行リスト格納用 ( { text: 文字列, textColor: 色, correctKey: ??? } )
+    //   text        -> 単語の意味（例: "赤", "青", ...）を日本語で
+    //   textColor   -> 実際に表示する文字色 (CSS color)
+    //   correctKey  -> 文字色に対応したキー (例: "R", "B", "G", "Y")
+    let trials = [];
+
+    // 現在の試行インデックス
+    let currentTrialIndex = 0;
+    // 試行中のフラグ
+    let inProgress = false;
+    // 刺激提示時刻
+    let startTime = 0;
+
+    // 結果格納用
+    // 各試行: { text: string, textColor: string, correctKey: string, userKey: string, rt: number, correct: boolean }
+    let results = [];
+
+    /********************************************
+     * 2. イベント: 開始ボタン
+     ********************************************/
+    startBtn.addEventListener("click", startGame);
+
+    function startGame() {
+      startBtn.disabled = true;
+      infoArea.textContent = "";
+
+      // 試行データ作成
+      createTrials();
+      currentTrialIndex = 0;
+      results = [];
+
+      runNextTrial();
+    }
+
+    /********************************************
+     * 3. 試行リストの作成
+     ********************************************/
+    function createTrials() {
+      // TRIAL_COUNT 回、毎回ランダムに単語と色を組み合わせる
+      // textColor と text(色名) は別々にランダムに選ぶ
+      const arr = [];
+      for (let i = 0; i < TRIAL_COUNT; i++) {
+        // 文字として表示する色 (単語)
+        const wordObj = COLORS[Math.floor(Math.random() * COLORS.length)];
+        // 実際に色付けする色
+        const colorObj = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+        arr.push({
+          text: wordObj.colorName,      // 例: "赤"
+          textColor: colorObj.colorCode,// 例: "blue"
+          correctKey: colorObj.key      // 例: "B"
+        });
+      }
+      trials = arr;
+    }
+
+    /********************************************
+     * 4. 試行の開始
+     ********************************************/
+    function runNextTrial() {
+      if (currentTrialIndex >= TRIAL_COUNT) {
+        endGame();
+        return;
+      }
+
+      inProgress = true;
+      const trial = trials[currentTrialIndex];
+
+      // 画面に表示
+      wordElement.textContent = trial.text;       // 例: "赤"
+      wordElement.style.color = trial.textColor;  // 例: "blue"
+      startTime = performance.now();
+    }
+
+    /********************************************
+     * 5. キー押下処理
+     ********************************************/
+    window.addEventListener("keydown", e => {
+      if (!inProgress) return;
+
+      // 押されたキーを大文字に変換 (例: 'r' -> 'R')
+      const userKey = e.key.toUpperCase();
+
+      // "R", "B", "G", "Y" 以外は無視
+      if (!["R", "B", "G", "Y"].includes(userKey)) return;
+
+      // 結果記録
+      recordResponse(userKey);
+    });
+
+    function recordResponse(userKey) {
+      inProgress = false;
+      const endTime = performance.now();
+      const rt = endTime - startTime;
+
+      const trial = trials[currentTrialIndex];
+      const isCorrect = (userKey === trial.correctKey);
+
+      results.push({
+        text: trial.text,
+        textColor: trial.textColor,
+        correctKey: trial.correctKey,
+        userKey: userKey,
+        rt: rt,
+        correct: isCorrect
+      });
+
+      currentTrialIndex++;
+      // 次の試行へ
+      setTimeout(() => {
+        runNextTrial();
+      }, 500);
+    }
+
+    /********************************************
+     * 6. ゲーム終了・結果表示
+     ********************************************/
+    function endGame() {
+      wordElement.textContent = "お疲れ様でした！";
+
+      // 集計
+      const n = results.length;
+      const correctCount = results.filter(r => r.correct).length;
+      const accuracy = (correctCount / n) * 100;
+
+      // 正答のみの平均RT
+      const correctTrials = results.filter(r => r.correct);
+      let meanRT = 0;
+      if (correctTrials.length > 0) {
+        meanRT = correctTrials.reduce((acc, cur) => acc + cur.rt, 0) / correctTrials.length;
+      }
+
+      infoArea.innerHTML = `
+        <p>試行数：${n}</p>
+        <p>正答率：${accuracy.toFixed(1)} %</p>
+        <p>平均反応時間（正答のみ）：${meanRT.toFixed(2)} ms</p>
+      `;
+
+      startBtn.disabled = false;
+      startBtn.textContent = "もう一度";
+    }
+  </script>
+</body>
+</html>
