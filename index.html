@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ストループ課題デモ</title>
+  <title>ストループ課題</title>
   <style>
     * {
       box-sizing: border-box;
@@ -69,15 +69,17 @@
   </style>
 </head>
 <body>
-  <h1>ストループ課題</h1>
+  <h1>文字に惑わされるな！ゲーム</h1>
   <div id="instruction">
-    <p>表示される「文字の色」に対応するキーを押してください。</p>
-    <p>(赤→R, 青→B, 緑→G, 黄→Y)</p>
-    <p>※ 単語の意味に惑わされず、<strong>文字の色</strong>に注目！</p>
+    <p>表示される<strong>「文字の色」</strong>に対応するキーを押してください。</p>
+    <p><strong>(赤→R, 青→B, 緑→G, 黄→Y)</strong></p>
+    <p>文字の意味に惑わされず、文字の色に注目！</p>
+    <p>計10問です。<strong>なるべく早く、正確に</strong>押してください。</p>
+    <p>集中力・注意力を測定します。</p>
   </div>
 
   <div id="task-area">
-    <div id="word">開始ボタンを押してください</div>
+    <div id="word">開始ボタンでスタート！</div>
   </div>
 
   <div id="info"></div>
@@ -93,9 +95,6 @@
     const startBtn = document.getElementById("start-btn");
 
     // 色名と対応キー
-    //   colorName: 表示する文字 (日本語の「赤」「青」「緑」「黄」など)
-    //   colorCode: 実際に文字に適用するCSSカラー
-    //   key: キーボードの押下キー（R, B, G, Y など）
     const COLORS = [
       { colorName: "赤", colorCode: "red",   key: "R" },
       { colorName: "青", colorCode: "blue",  key: "B" },
@@ -106,10 +105,7 @@
     // 試行回数
     const TRIAL_COUNT = 10;
 
-    // 試行リスト格納用 ( { text: 文字列, textColor: 色, correctKey: ??? } )
-    //   text        -> 単語の意味（例: "赤", "青", ...）を日本語で
-    //   textColor   -> 実際に表示する文字色 (CSS color)
-    //   correctKey  -> 文字色に対応したキー (例: "R", "B", "G", "Y")
+    // 試行リスト格納用
     let trials = [];
 
     // 現在の試行インデックス
@@ -144,21 +140,34 @@
      * 3. 試行リストの作成
      ********************************************/
     function createTrials() {
-      // TRIAL_COUNT 回、毎回ランダムに単語と色を組み合わせる
-      // textColor と text(色名) は別々にランダムに選ぶ
-      const arr = [];
-      for (let i = 0; i < TRIAL_COUNT; i++) {
-        // 文字として表示する色 (単語)
-        const wordObj = COLORS[Math.floor(Math.random() * COLORS.length)];
-        // 実際に色付けする色
-        const colorObj = COLORS[Math.floor(Math.random() * COLORS.length)];
+      let arr = [];
+      let prevTrial = null;  // ★ 直前の試行を記憶
 
-        arr.push({
-          text: wordObj.colorName,      // 例: "赤"
-          textColor: colorObj.colorCode,// 例: "blue"
-          correctKey: colorObj.key      // 例: "B"
-        });
+      for (let i = 0; i < TRIAL_COUNT; i++) {
+        let trial;
+        do {
+          // 文字として表示する色
+          const wordObj = COLORS[Math.floor(Math.random() * COLORS.length)];
+          // 実際に色付けする色
+          const colorObj = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+          trial = {
+            text: wordObj.colorName,     // 例: "赤"
+            textColor: colorObj.colorCode,// 例: "blue"
+            correctKey: colorObj.key     // 例: "B"
+          };
+        } while (
+          // ★ ここが追加/変更部分
+          // もし「前の試行」と "text" と "textColor" が両方同じなら、やり直し
+          prevTrial &&
+          trial.text === prevTrial.text &&
+          trial.textColor === prevTrial.textColor
+        );
+
+        arr.push(trial);
+        prevTrial = trial; // ★ 今回作成した試行を「前の試行」に設定
       }
+
       trials = arr;
     }
 
@@ -175,8 +184,8 @@
       const trial = trials[currentTrialIndex];
 
       // 画面に表示
-      wordElement.textContent = trial.text;       // 例: "赤"
-      wordElement.style.color = trial.textColor;  // 例: "blue"
+      wordElement.textContent = trial.text;
+      wordElement.style.color = trial.textColor;
       startTime = performance.now();
     }
 
